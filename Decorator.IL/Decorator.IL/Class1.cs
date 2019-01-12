@@ -1,10 +1,12 @@
-﻿using System;
+﻿using StrictEmit;
+
+using SwissILKnife;
+
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
-using StrictEmit;
-using SwissILKnife;
 
 namespace Decorator.IL
 {
@@ -21,7 +23,9 @@ namespace Decorator.IL
 	public interface IAttatchment
 	{
 		void EmitDeserialize(ILGenerator il);
+
 		void EmitSerialize(ILGenerator il);
+
 		void EmitEstimateSize(ILGenerator il);
 	}
 
@@ -117,7 +121,7 @@ namespace Decorator.IL
 		{
 			var decorations = _compiler.Compile(discovery, builder);
 
-			foreach(var decoration in decorations)
+			foreach (var decoration in decorations)
 			{
 				var decorationType = decoration.GetType();
 				var genArgs = decorationType.GenericTypeArguments;
@@ -134,15 +138,64 @@ namespace Decorator.IL
 			return decorations;
 		}
 
+		public class Block
+		{
+			[Position(0), Required] public int X { get; set; }
+			// etc.
+
+			private object[] _data;
+
+			[Array, Position(1)]
+			public object[] Data
+			{
+				get => _data;
+				set
+				{
+					_data = value;
+
+					int i = 1;
+
+					// todo: bounds checking
+					switch (_data[0])
+					{
+						case "a":
+							if (DDecorator<AParams>.TryDeserialize(Data, ref i, out var result))
+							{
+								BlockParams = result;
+							}
+							break;
+
+						default: break;
+					}
+				}
+			}
+
+			public BlockParams BlockParams { get; set; }
+		}
+
+		public class BlockParams
+		{
+			// idk, base class
+		}
+
+		public class AParams : BlockParams
+		{
+			[Required, Position(0)] public int MusicId { get; set; }
+		}
+
 		public class ILDecoration : IDecoration
 		{
 			public bool Deserialize(ref object[] array, object instance, ref int index) => throw new NotImplementedException();
+
 			public void Serialize(ref object[] array, object instance, ref int index) => throw new NotImplementedException();
+
 			public void EstimateSize(object instance, ref int size) => throw new NotImplementedException();
 		}
 
 		public delegate bool Deserialize(ref object[] array, object instance, ref int index);
+
 		public delegate void Serialize(ref object[] array, object instance, ref int index);
+
 		public delegate void EstimateSize(object instance, ref int index);
 
 		// will be overriden by AOT in the future
